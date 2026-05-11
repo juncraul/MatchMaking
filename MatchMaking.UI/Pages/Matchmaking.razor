@@ -1,0 +1,150 @@
+@page "/matchmaking"
+@using MatchMaking.UI.Models
+@using MatchMaking.UI.Services
+@inject UserService UserService
+
+<PageTitle>Matchmaking</PageTitle>
+
+<h3>Choose Your Favorite</h3>
+
+@if (currentPair == null)
+{
+    <div class="text-center">
+        @if (isLoading)
+        {
+            <p><em>Loading users...</em></p>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                <h4>Not enough users available!</h4>
+                <p>Please add more users to start matchmaking.</p>
+                <a href="/users" class="btn btn-primary">Add Users</a>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="row">
+        @foreach (var user in currentPair)
+        {
+            <div class="col-md-6 mb-3">
+                <div class="card h-100 @(selectedUserId == user.Id ? "border-primary" : "")" 
+                     style="cursor: pointer;" 
+                     @onclick="() => SelectUser(user.Id)">
+                    <div class="card-body text-center">
+                        @if (!string.IsNullOrEmpty(user.PicturePath))
+                        {
+                            <img src="@user.PicturePath" alt="@user.Name" 
+                                 class="img-fluid mb-3" 
+                                 style="max-height: 200px; object-fit: cover;" />
+                        }
+                        else
+                        {
+                            <div class="bg-secondary text-white d-flex align-items-center justify-content-center mb-3" 
+                                 style="height: 200px; font-size: 3rem;">
+                                👤
+                            </div>
+                        }
+                        
+                        <h5 class="card-title">@user.Name</h5>
+                        <p class="card-text">
+                            <strong>Sex:</strong> @user.Sex<br />
+                            <strong>Age:</strong> @user.Age<br />
+                            <strong>Score:</strong> @user.Score
+                        </p>
+                        
+                        <button class="btn btn-primary @(selectedUserId == user.Id ? "disabled" : "")" 
+                                @onclick="() => SelectUser(user.Id)"
+                                disabled="@(selectedUserId == user.Id)">
+                            @(selectedUserId == user.Id ? "✓ Selected" : "Choose")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (selectedUserId != null)
+    {
+        <div class="row mt-3">
+            <div class="col-12 text-center">
+                <button class="btn btn-success btn-lg" @onclick="SubmitVote">
+                    Submit Vote
+                </button>
+                <button class="btn btn-secondary btn-lg ms-2" @onclick="ResetSelection">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    }
+}
+
+@if (showSuccessMessage)
+{
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="alert alert-success">
+                <strong>Success!</strong> Your vote has been recorded. Loading next pair...
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<User>? currentPair;
+    private int? selectedUserId;
+    private bool isLoading = true;
+    private bool showSuccessMessage = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNewPair();
+    }
+
+    private async Task LoadNewPair()
+    {
+        isLoading = true;
+        selectedUserId = null;
+        showSuccessMessage = false;
+        StateHasChanged();
+
+        currentPair = await UserService.GetRandomPairAsync();
+        
+        if (currentPair == null || currentPair.Count < 2)
+        {
+            currentPair = null;
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void SelectUser(int userId)
+    {
+        selectedUserId = userId;
+    }
+
+    private async Task SubmitVote()
+    {
+        if (selectedUserId.HasValue)
+        {
+            var success = await UserService.VoteForUserAsync(selectedUserId.Value);
+            if (success)
+            {
+                showSuccessMessage = true;
+                StateHasChanged();
+                
+                // Load new pair after a short delay
+                await Task.Delay(1500);
+                await LoadNewPair();
+            }
+        }
+    }
+
+    private void ResetSelection()
+    {
+        selectedUserId = null;
+    }
+}

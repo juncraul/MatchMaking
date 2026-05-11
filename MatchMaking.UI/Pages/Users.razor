@@ -1,0 +1,158 @@
+@page "/users"
+@using MatchMaking.UI.Models
+@using MatchMaking.UI.Services
+@inject UserService UserService
+
+<PageTitle>Users</PageTitle>
+
+<h3>User Management</h3>
+
+@if (users == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <button class="btn btn-primary" @onclick="ShowAddUserForm">Add New User</button>
+        </div>
+    </div>
+
+    @if (showAddForm)
+    {
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Add New User</h5>
+                        <EditForm Model="@newUser" OnValidSubmit="@HandleValidSubmit">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary />
+                            
+                            <div class="form-group mb-2">
+                                <label for="name">Name:</label>
+                                <InputText id="name" class="form-control" @bind-Value="newUser.Name" />
+                                <ValidationMessage For="@(() => newUser.Name)" />
+                            </div>
+                            
+                            <div class="form-group mb-2">
+                                <label for="sex">Sex:</label>
+                                <InputSelect id="sex" class="form-control" @bind-Value="newUser.Sex">
+                                    <option value="">Select...</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => newUser.Sex)" />
+                            </div>
+                            
+                            <div class="form-group mb-2">
+                                <label for="age">Age:</label>
+                                <InputNumber id="age" class="form-control" @bind-Value="newUser.Age" />
+                                <ValidationMessage For="@(() => newUser.Age)" />
+                            </div>
+                            
+                            <div class="form-group mb-2">
+                                <label for="picturePath">Picture URL:</label>
+                                <InputText id="picturePath" class="form-control" @bind-Value="newUser.PicturePath" />
+                            </div>
+                            
+                            <button type="submit" class="btn btn-success">Save User</button>
+                            <button type="button" class="btn btn-secondary ms-2" @onclick="HideAddUserForm">Cancel</button>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-12">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Sex</th>
+                        <th>Age</th>
+                        <th>Score</th>
+                        <th>Picture</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in users)
+                    {
+                        <tr>
+                            <td>@user.Id</td>
+                            <td>@user.Name</td>
+                            <td>@user.Sex</td>
+                            <td>@user.Age</td>
+                            <td>@user.Score</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(user.PicturePath))
+                                {
+                                    <img src="@user.PicturePath" alt="@user.Name" style="max-width: 50px; max-height: 50px;" />
+                                }
+                                else
+                                {
+                                    <span>No picture</span>
+                                }
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" @onclick="() => DeleteUser(user.Id)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private List<User>? users;
+    private User newUser = new User();
+    private bool showAddForm = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        users = await UserService.GetUsersAsync();
+    }
+
+    private void ShowAddUserForm()
+    {
+        showAddForm = true;
+        newUser = new User();
+    }
+
+    private void HideAddUserForm()
+    {
+        showAddForm = false;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        var createdUser = await UserService.CreateUserAsync(newUser);
+        if (createdUser != null)
+        {
+            await LoadUsers();
+            showAddForm = false;
+            newUser = new User();
+        }
+    }
+
+    private async Task DeleteUser(int id)
+    {
+        if (await UserService.DeleteUserAsync(id))
+        {
+            await LoadUsers();
+        }
+    }
+}
